@@ -4,7 +4,7 @@ def evaluate(blocked_users, users):
 
     premium_penalty = 0
 
-    # ✅ Remove invalid IDs
+    # Remove invalid IDs
     valid_ids = {user["id"] for user in users}
     blocked_users = [uid for uid in blocked_users if uid in valid_ids]
 
@@ -21,19 +21,19 @@ def evaluate(blocked_users, users):
                 if user["tier"] == "premium":
                     premium_penalty += 1
 
-                print(f"❌ Wrongly blocked real user: {user['id']} (tier: {user['tier']})")
+                print(f"[FP] Wrongly blocked real user: {user['id']} (tier: {user['tier']})")
 
-    # ✅ metrics
+    # metrics
     precision = TP / (TP + FP) if (TP + FP) > 0 else 0
     recall = TP / (TP + FN) if (TP + FN) > 0 else 0
 
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
     
-    # ✅ improved system health
+    # improved system health
     system_health = 1 - ((FN + FP) / total_users)
 
-    # ✅ final score (balanced + realistic)
+    # final score (balanced + realistic)
     score = max(
         0,
         (0.6 * f1) +

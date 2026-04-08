@@ -12,7 +12,7 @@ from models import User
 
 def test_environment_basic():
     """Test basic environment functionality."""
-    print("\n=== 🧪 TEST 1: Basic Environment Setup ===")
+    print("\n=== [TEST] TEST 1: Basic Environment Setup ===")
     
     env = make_env()
     data = get_easy_data()
@@ -26,7 +26,7 @@ def test_environment_basic():
     assert "system_health" in obs, "Observation missing 'system_health'"
     
     # Verify is_bot is hidden
-    assert "is_bot" not in obs["users"][0], "❌ CRITICAL: is_bot is exposed to agent!"
+    assert "is_bot" not in obs["users"][0], "[FAIL] CRITICAL: is_bot is exposed to agent!"
     
     # Verify visible fields
     assert "id" in obs["users"][0]
@@ -34,14 +34,14 @@ def test_environment_basic():
     assert "is_suspicious_pattern" in obs["users"][0]
     assert "tier" in obs["users"][0]
     
-    print("✅ Environment structure correct")
-    print(f"✅ is_bot hidden from agent observations")
-    print(f"✅ Initial state: {len(obs['users'])} users, health={obs['system_health']}")
+    print("[PASS] Environment structure correct")
+    print(f"[PASS] is_bot hidden from agent observations")
+    print(f"[PASS] Initial state: {len(obs['users'])} users, health={obs['system_health']}")
 
 
 def test_environment_rewards():
     """Test reward calculation."""
-    print("\n=== 🧪 TEST 2: Reward Calculation ===")
+    print("\n=== [TEST] TEST 2: Reward Calculation ===")
     
     env = make_env()
     data = [
@@ -54,37 +54,37 @@ def test_environment_rewards():
     
     # Test blocking a bot (should get +0.4 + health bonus)
     obs, reward, done, info = env.step({"type": "block", "user_id": "bot1"})
-    assert reward > 0, f"❌ Blocking bot should give positive reward, got {reward}"
-    assert info["tp"] == 1, f"❌ Expected TP=1, got {info['tp']}"
-    print(f"✅ Block bot: reward={reward:.2f}, TP={info['tp']}")
+    assert reward > 0, f"[FAIL] Blocking bot should give positive reward, got {reward}"
+    assert info["tp"] == 1, f"[FAIL] Expected TP=1, got {info['tp']}"
+    print(f"[PASS] Block bot: reward={reward:.2f}, TP={info['tp']}")
     
     # Test blocking a human (should get -0.5)
     obs, reward, done, info = env.step({"type": "block", "user_id": "human1"})
-    assert reward < 0, f"❌ Blocking human should give negative reward, got {reward}"
-    assert info["fp"] == 1, f"❌ Expected FP=1, got {info['fp']}"
-    print(f"✅ Block human: reward={reward:.2f}, FP={info['fp']}")
+    assert reward < 0, f"[FAIL] Blocking human should give negative reward, got {reward}"
+    assert info["fp"] == 1, f"[FAIL] Expected FP=1, got {info['fp']}"
+    print(f"[PASS] Block human: reward={reward:.2f}, FP={info['fp']}")
     
     # Test blocking premium (should track penalty)
     obs, reward, done, info = env.step({"type": "block", "user_id": "premium1"})
-    assert info["premium_penalty"] == 1, f"❌ Expected premium_penalty=1, got {info['premium_penalty']}"
-    print(f"✅ Block premium: premium_penalty={info['premium_penalty']}")
+    assert info["premium_penalty"] == 1, f"[FAIL] Expected premium_penalty=1, got {info['premium_penalty']}"
+    print(f"[PASS] Block premium: premium_penalty={info['premium_penalty']}")
     
     # Test invalid action
     obs, reward, done, info = env.step({"type": "block", "user_id": "invalid_user"})
-    assert reward == -0.1, f"❌ Invalid user should give -0.1, got {reward}"
-    print(f"✅ Invalid user: reward={reward}")
+    assert reward == -0.1, f"[FAIL] Invalid user should give -0.1, got {reward}"
+    print(f"[PASS] Invalid user: reward={reward}")
     
     # Test already blocked
     env.reset(data)
     env.step({"type": "block", "user_id": "bot1"})
     obs, reward, done, info = env.step({"type": "block", "user_id": "bot1"})
-    assert reward == -0.1, f"❌ Already blocked should give -0.1, got {reward}"
-    print(f"✅ Already blocked: reward={reward}")
+    assert reward == -0.1, f"[FAIL] Already blocked should give -0.1, got {reward}"
+    print(f"[PASS] Already blocked: reward={reward}")
 
 
 def test_metrics_alignment():
     """Test that environment metrics match evaluator metrics."""
-    print("\n=== 🧪 TEST 3: Metrics Alignment with Evaluator ===")
+    print("\n=== [TEST] TEST 3: Metrics Alignment with Evaluator ===")
     
     env = make_env()
     data = get_medium_data()
@@ -106,22 +106,22 @@ def test_metrics_alignment():
     eval_results = evaluate(blocked_ids, data)
     
     # Compare metrics
-    print(f"\n📊 Comparing Environment vs Evaluator:")
-    print(f"   TP: {info['tp']} vs {eval_results['TP']} {'✅' if info['tp'] == eval_results['TP'] else '❌'}")
-    print(f"   FP: {info['fp']} vs {eval_results['FP']} {'✅' if info['fp'] == eval_results['FP'] else '❌'}")
-    print(f"   FN: {info['fn']} vs {eval_results['FN']} {'✅' if info['fn'] == eval_results['FN'] else '❌'}")
+    print(f"\n[REPORT] Comparing Environment vs Evaluator:")
+    print(f"   TP: {info['tp']} vs {eval_results['TP']} {'[PASS]' if info['tp'] == eval_results['TP'] else '[FAIL]'}")
+    print(f"   FP: {info['fp']} vs {eval_results['FP']} {'[PASS]' if info['fp'] == eval_results['FP'] else '[FAIL]'}")
+    print(f"   FN: {info['fn']} vs {eval_results['FN']} {'[PASS]' if info['fn'] == eval_results['FN'] else '[FAIL]'}")
     print(f"   System Health: {obs['system_health']:.4f} vs {eval_results['system_health']:.4f}")
     
-    assert info['tp'] == eval_results['TP'], "❌ TP mismatch!"
-    assert info['fp'] == eval_results['FP'], "❌ FP mismatch!"
-    assert info['fn'] == eval_results['FN'], "❌ FN mismatch!"
+    assert info['tp'] == eval_results['TP'], "[FAIL] TP mismatch!"
+    assert info['fp'] == eval_results['FP'], "[FAIL] FP mismatch!"
+    assert info['fn'] == eval_results['FN'], "[FAIL] FN mismatch!"
     
-    print(f"\n✅ All metrics align with evaluator!")
+    print(f"\n[PASS] All metrics align with evaluator!")
 
 
 def test_simple_agent():
     """Test a simple agent using the environment."""
-    print("\n=== 🧪 TEST 4: Simple Agent Execution ===")
+    print("\n=== [TEST] TEST 4: Simple Agent Execution ===")
     
     env = make_env()
     data = get_winning_data()
@@ -165,7 +165,7 @@ def test_simple_agent():
         if done:
             break
     
-    print(f"\n📊 Episode Complete:")
+    print(f"\n[REPORT] Episode Complete:")
     print(f"   Total Steps: {step_count}")
     print(f"   Total Reward: {total_reward:.2f}")
     print(f"   Final Health: {obs['system_health']:.2f}")
@@ -174,17 +174,17 @@ def test_simple_agent():
     
     # Compare with evaluator
     eval_results = evaluate(info['blocked_ids'], data)
-    print(f"\n📊 Evaluator Score: {eval_results['score']:.4f}")
+    print(f"\n[REPORT] Evaluator Score: {eval_results['score']:.4f}")
     print(f"   F1: {eval_results['f1']:.4f}")
     print(f"   Precision: {eval_results['precision']:.4f}")
     print(f"   Recall: {eval_results['recall']:.4f}")
     
-    print(f"\n✅ Agent ran successfully!")
+    print(f"\n[PASS] Agent ran successfully!")
 
 
 def test_system_health_calculation():
     """Test system health calculation formula."""
-    print("\n=== 🧪 TEST 5: System Health Calculation ===")
+    print("\n=== [TEST] TEST 5: System Health Calculation ===")
     
     env = make_env()
     data = [
@@ -200,30 +200,30 @@ def test_system_health_calculation():
     obs, reward, done, info = env.step({"type": "block", "user_id": "bot1"})
     expected_health = max(0, 1 - ((info['fn'] + info['fp']) / 4))
     assert abs(obs['system_health'] - expected_health) < 0.001, \
-        f"❌ System health mismatch: {obs['system_health']:.4f} vs {expected_health:.4f}"
-    print(f"✅ After blocking 1 bot: Health={obs['system_health']:.4f} (FN={info['fn']}, FP={info['fp']})")
+        f"[FAIL] System health mismatch: {obs['system_health']:.4f} vs {expected_health:.4f}"
+    print(f"[PASS] After blocking 1 bot: Health={obs['system_health']:.4f} (FN={info['fn']}, FP={info['fp']})")
     
     # Block 1 human (1 TP, 1 FP, 1 FN, 1 TN)
     obs, reward, done, info = env.step({"type": "block", "user_id": "human1"})
     expected_health = max(0, 1 - ((info['fn'] + info['fp']) / 4))
     assert abs(obs['system_health'] - expected_health) < 0.001, \
-        f"❌ System health mismatch: {obs['system_health']:.4f} vs {expected_health:.4f}"
-    print(f"✅ After blocking 1 human: Health={obs['system_health']:.4f} (FN={info['fn']}, FP={info['fp']})")
+        f"[FAIL] System health mismatch: {obs['system_health']:.4f} vs {expected_health:.4f}"
+    print(f"[PASS] After blocking 1 human: Health={obs['system_health']:.4f} (FN={info['fn']}, FP={info['fp']})")
     
     # Block remaining bot (2 TP, 1 FP, 0 FN, 1 TN)
     obs, reward, done, info = env.step({"type": "block", "user_id": "bot2"})
     expected_health = max(0, 1 - ((info['fn'] + info['fp']) / 4))
     assert abs(obs['system_health'] - expected_health) < 0.001, \
-        f"❌ System health mismatch: {obs['system_health']:.4f} vs {expected_health:.4f}"
-    print(f"✅ After blocking 2nd bot: Health={obs['system_health']:.4f} (FN={info['fn']}, FP={info['fp']})")
+        f"[FAIL] System health mismatch: {obs['system_health']:.4f} vs {expected_health:.4f}"
+    print(f"[PASS] After blocking 2nd bot: Health={obs['system_health']:.4f} (FN={info['fn']}, FP={info['fp']})")
     
-    print(f"\n✅ System health formula verified!")
+    print(f"\n[PASS] System health formula verified!")
 
 
 def run_all_tests():
     """Run all tests."""
     print("=" * 60)
-    print("🚀 API RATE LIMIT DEFENDER - ENVIRONMENT TEST SUITE")
+    print("[LAUNCH] API RATE LIMIT DEFENDER - ENVIRONMENT TEST SUITE")
     print("=" * 60)
     
     try:
@@ -234,14 +234,14 @@ def run_all_tests():
         test_simple_agent()
         
         print("\n" + "=" * 60)
-        print("✅ ALL TESTS PASSED! Environment is ready for use.")
+        print("[PASS] ALL TESTS PASSED! Environment is ready for use.")
         print("=" * 60)
         
     except AssertionError as e:
-        print(f"\n❌ TEST FAILED: {e}")
+        print(f"\n[FAIL] TEST FAILED: {e}")
         raise
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
+        print(f"\n[FAIL] ERROR: {e}")
         raise
 
 

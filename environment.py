@@ -85,6 +85,9 @@ class APIRateLimitDefenderEnv:
         """
         if not self._initialized:
             raise RuntimeError("Environment not initialized. Call reset() first.")
+
+        if not isinstance(action, dict):
+            action = {}
         
         self.steps += 1
         reward = 0.0
@@ -97,6 +100,8 @@ class APIRateLimitDefenderEnv:
         
         if action_type == "block":
             reward, premium_penalty_this_step, valid_action = self._handle_block_action(user_id)
+        elif action_type == "noop":
+            reward = 0.0
         else:
             # Invalid action type
             reward = self.PENALTY_INVALID_ACTION
