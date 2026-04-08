@@ -506,16 +506,15 @@ def main():
     # ========================================================================
     # AGENT SELECTION
     # ========================================================================
-    # Uncomment ONE of the following agent options:
+    # Import and use HardDefenderAgent (Risk-based rule system - F1=0.791)
+    from hard_defender_agent import HardDefenderAgent
     
-    # Option 1: Heuristic baseline (no training required)
-    agent = HeuristicAgent(rps_threshold=50, name="Heuristic-v1")
+    agent = HardDefenderAgent(block_threshold=2.5)
     
-    # Option 2: LLM-based agent (requires API keys)
+    # Other agent options (commented out):
+    # agent = HeuristicAgent(rps_threshold=50, name="Heuristic-v1")
     # agent = LLMAgent(name="GPT-Defender")
-    
-    # Option 3: Trained PyTorch model (Sakshi's trained agent)
-    # agent = TrainedModelAgent(model_path="sakshi_model.pt", name="Sakshi-DQN-v1")
+    # agent = TrainedModelAgent(model_path="best_model.pt", name="DQN-v1")
     
     # ========================================================================
     

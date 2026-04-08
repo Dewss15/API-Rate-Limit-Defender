@@ -20,6 +20,14 @@ class HardDefenderAgent:
     def __init__(self, block_threshold: float = 2.5):
         self.block_threshold = block_threshold
         self._exploration_used = False
+    
+    def get_name(self) -> str:
+        """Return agent name for logging."""
+        return f"HardDefender-v1.0"
+    
+    def reset(self):
+        """Reset agent state between episodes."""
+        self._exploration_used = False
 
     def _reset_episode_state_if_needed(self, observation: Dict[str, Any]) -> None:
         # Reset per-episode state when a fresh episode is detected.

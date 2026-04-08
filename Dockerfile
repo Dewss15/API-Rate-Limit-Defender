@@ -32,6 +32,7 @@ COPY environment.py .
 COPY data.py .
 COPY evaluator.py .
 COPY grader.py .
+COPY hard_defender_agent.py .
 COPY inference.py .
 COPY openenv.yaml .
 

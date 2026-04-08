@@ -255,8 +255,10 @@ def main():
         print(json.dumps({"event": "INFO", "agent": "LLM", "model": os.environ.get("MODEL_NAME", "unknown")}), flush=True)
         agent = LLMAgent()
     else:
-        print(json.dumps({"event": "INFO", "agent": "Heuristic"}), flush=True)
-        agent = HeuristicAgent(rps_threshold=50)
+        # Use HardDefenderAgent (F1=0.791 winning agent)
+        from hard_defender_agent import HardDefenderAgent
+        print(json.dumps({"event": "INFO", "agent": "HardDefender", "version": "1.0"}), flush=True)
+        agent = HardDefenderAgent(block_threshold=2.5)
     
     # Define tasks
     tasks = [
