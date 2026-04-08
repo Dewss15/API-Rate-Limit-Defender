@@ -1,0 +1,145 @@
+name: api-rate-limit-defender
+version: 1.0.0
+description: |
+  API Rate Limit Defender - A reinforcement learning environment for training agents 
+  to identify and block malicious bot traffic while preserving legitimate users, 
+  especially premium customers. The agent must infer bot behavior from partial 
+  observations (RPS, suspicious patterns, tier) without direct access to ground truth.
+
+author: Dewpearl Gonsalves
+license: MIT
+
+tags:
+  - cybersecurity
+  - rate-limiting
+  - reinforcement-learning
+  - anomaly-detection
+  - bot-detection
+
+observation_space:
+  type: dict
+  properties:
+    users:
+      type: array
+      description: List of users with observable features (excludes is_bot)
+      items:
+        type: object
+        properties:
+          id: 
+            type: string
+          rps: 
+            type: integer
+            minimum: 0
+          is_suspicious_pattern: 
+            type: boolean
+          tier: 
+            type: string
+            enum: ["normal", "premium"]
+    blocked_users:
+      type: array
+      description: List of currently blocked user IDs
+      items:
+        type: string
+    system_health:
+      type: number
+      minimum: 0.0
+      maximum: 1.0
+      description: Current system health percentage
+
+action_space:
+  type: dict
+  properties:
+    type:
+      type: string
+      enum: ["block", "noop"]
+    user_id:
+      type: string
+      description: User ID to block (required if type is 'block')
+
+reward_range:
+  min: -0.6
+  max: 0.5
+
+episode_constraints:
+  max_steps: 20
+  terminates_on:
+    - system_health <= 0
+    - steps >= 20
+
+tasks:
+  easy-triage:
+    description: |
+      Basic bot detection with 10 users (7 humans, 3 bots). Bots exhibit 
+      obvious high RPS (400-600) and suspicious patterns. Ideal for testing 
+      basic blocking logic.
+    expected_difficulty: easy
+    dataset: get_easy_data
+    target_metrics:
+      f1_score: 0.90
+      system_health: 0.95
+      premium_penalty: 0
+    
+  behavioral-analysis:
+    description: |
+      Moderate challenge with 20 users (14 humans, 6 bots). Some overlap in 
+      RPS ranges requiring careful analysis of behavioral patterns. Tests 
+      agent's ability to balance precision and recall.
+    expected_difficulty: medium
+    dataset: get_medium_data
+    target_metrics:
+      f1_score: 0.80
+      system_health: 0.90
+      premium_penalty: 0
+    
+  adversarial-defense:
+    description: |
+      Realistic production scenario with 83 users (56 humans, 24 bots, 3 hard cases). 
+      Includes stealth bots with low RPS, premium users with suspicious patterns (traps), 
+      and adversarial cases designed to confuse heuristics. Requires sophisticated 
+      inference and near-zero premium penalties.
+    expected_difficulty: hard
+    dataset: get_winning_data
+    target_metrics:
+      f1_score: 0.80
+      system_health: 0.90
+      premium_penalty: 2
+
+evaluation:
+  primary_metric: final_score
+  formula: |
+    score = max(0, (0.6 * f1) + (0.3 * system_health) - (0.1 * premium_penalty_rate))
+    where premium_penalty_rate = premium_penalty / total_users
+  
+  components:
+    f1_score:
+      weight: 0.6
+      description: Harmonic mean of precision and recall
+    system_health:
+      weight: 0.3
+      description: 1 - ((false_negatives + false_positives) / total_users)
+    premium_penalty:
+      weight: -0.1
+      description: Negative impact for blocking premium users
+
+constraints:
+  - Agent must NOT access is_bot field
+  - Premium users should rarely be blocked (heavy penalty)
+  - Must be deterministic (reproducible results)
+  - No external API calls during evaluation
+  - Must complete all episodes without crashing
+
+deployment:
+  runtime: python:3.10
+  entry_point: inference.py
+  dependencies: requirements.txt
+  environment_variables:
+    - API_BASE_URL
+    - MODEL_NAME
+    - HF_TOKEN
+
+validation:
+  - Environment supports step(action) and reset(dataset)
+  - Observations exclude is_bot field
+  - System health formula matches specification
+  - Reward structure is deterministic
+  - All three tasks complete successfully

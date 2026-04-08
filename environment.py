@@ -23,7 +23,7 @@ class APIRateLimitDefenderEnv:
     
     Rewards:
         - +0.4 for blocking a bot
-        - -0.5 for blocking a human
+        - -0.7 for blocking a human (increased penalty for better precision)
         - Additional penalty tracked for blocking premium humans
         - +0.1 bonus if system_health > 0.8
     
@@ -35,7 +35,7 @@ class APIRateLimitDefenderEnv:
     # Constants
     MAX_STEPS: int = 20
     REWARD_BLOCK_BOT: float = 0.4
-    REWARD_BLOCK_HUMAN: float = -0.5
+    REWARD_BLOCK_HUMAN: float = -0.7  # Increased penalty to reduce false positives
     REWARD_HEALTH_BONUS: float = 0.1
     PENALTY_INVALID_ACTION: float = -0.1
     PENALTY_ALREADY_BLOCKED: float = -0.1
