@@ -1,14 +1,24 @@
 """
 inference.py - OpenEnv Inference Entry Point
 
-CRITICAL: This file must produce EXACT JSON log format for grading.
-Any deviation will cause validation failure.
+CRITICAL: This file must produce EXACT bracketed format for grading.
+Output format:
+    [START] task=<task_name> env=<benchmark> model=<model_name>
+    [STEP] step=<n> action=<action_str> reward=<0.00> done=<true|false> error=<msg|null>
+    [END] success=<true|false> steps=<n> score=<score> rewards=<r1,r2,...,rn>
 """
 
 import os
-import json
-from typing import Dict, Any, List
+import sys
+from typing import Dict, Any, List, Optional
 from openai import OpenAI
+
+# Avoid UnicodeEncodeError on Windows consoles (cp1252) when printing emojis.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 from environment import make_env
 from data import get_easy_data, get_medium_data, get_winning_data
@@ -165,21 +175,59 @@ class HeuristicAgent:
         return {"type": "noop", "user_id": None}
 
 
-def run_task(task_name: str, dataset_fn, agent, grader: Grader) -> Dict[str, Any]:
+def format_action(action: Dict[str, Any]) -> str:
+    """Format action dict as simple string."""
+    if action.get("type") == "block":
+        user_id = action.get("user_id", "unknown")
+        return f"block({user_id})"
+    else:
+        return "noop"
+
+
+def log_start(task: str, env: str, model: str) -> None:
+    """Print [START] line in official format."""
+    print(f"[START] task={task} env={env} model={model}", flush=True)
+
+
+def log_step(step: int, action_str: str, reward: float, done: bool, error: Optional[str]) -> None:
+    """Print [STEP] line in official format."""
+    done_str = str(done).lower()
+    error_str = error if error else "null"
+    print(
+        f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_str} error={error_str}",
+        flush=True,
+    )
+
+
+def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    """Print [END] line in official format."""
+    success_str = str(success).lower()
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(
+        f"[END] success={success_str} steps={steps} score={score:.3f} rewards={rewards_str}",
+        flush=True,
+    )
+
+
+def run_task(task_name: str, dataset_fn, agent, grader: Grader, benchmark: str = "api-defender") -> Dict[str, Any]:
     """
-    Run a single task and produce STRICT JSON logs.
+    Run a single task and produce official bracketed logs.
     
     Args:
-        task_name: Task identifier
+        task_name: Task identifier (easy-triage, behavioral-analysis, adversarial-defense)
         dataset_fn: Function to load dataset
         agent: Agent instance
         grader: Grader instance
+        benchmark: Environment name
         
     Returns:
         Final results dict
     """
-    # Print START log (EXACT format required)
-    print(json.dumps({"event": "START", "task": task_name}), flush=True)
+    # Get agent model name
+    agent_model = agent.get_name()
+    
+    # Print START log (official format)
+    log_start(task=task_name, env=benchmark, model=agent_model)
     
     # Initialize environment
     env = make_env()
@@ -188,48 +236,50 @@ def run_task(task_name: str, dataset_fn, agent, grader: Grader) -> Dict[str, Any
     
     done = False
     step = 0
-    total_reward = 0.0
+    rewards = []
+    error = None
     
-    # Run episode
+    # Run episode (max 20 steps)
     while not done and step < 20:
         # Agent selects action
-        action = agent.select_action(obs)
+        try:
+            action = agent.select_action(obs)
+        except Exception as e:
+            error = f"Agent error: {str(e)}"
+            action = {"type": "noop", "user_id": None}
         
         # Environment step
-        obs, reward, done, info = env.step(action)
-        total_reward += reward
+        try:
+            obs, reward, done, info = env.step(action)
+            rewards.append(reward)
+        except Exception as e:
+            error = f"Environment error: {str(e)}"
+            reward = 0.0
+            rewards.append(reward)
+            done = True
+        
         step += 1
         
-        # Print STEP log (EXACT format required)
-        step_log = {
-            "event": "STEP",
-            "step": step,
-            "action": action,
-            "reward": float(reward),
-            "done": done
-        }
-        print(json.dumps(step_log), flush=True)
+        # Format and log action
+        action_str = format_action(action)
+        log_step(step=step, action_str=action_str, reward=reward, done=done, error=error)
     
     # Grade final result
-    results = grader.grade(info["blocked_ids"], data)
+    try:
+        results = grader.grade(info.get("blocked_ids", []), data)
+        score = results["f1"]  # Use F1 as primary metric (normalized 0-1)
+        success = score >= 0.70  # Judging threshold
+    except Exception as e:
+        error = f"Grading error: {str(e)}"
+        score = 0.0
+        success = False
+        results = {}
     
-    # Print END log (EXACT format required)
-    end_log = {
-        "event": "END",
-        "task": task_name,
-        "final_score": float(results["score"]),
-        "tp": int(results["TP"]),
-        "fp": int(results["FP"]),
-        "fn": int(results["FN"]),
-        "precision": float(results["precision"]),
-        "recall": float(results["recall"]),
-        "f1": float(results["f1"]),
-        "system_health": float(results["system_health"]),
-        "premium_penalty": int(results["premium_penalty"]),
-        "total_reward": float(total_reward),
-        "steps": step
-    }
-    print(json.dumps(end_log), flush=True)
+    # Ensure score is in [0, 1] range
+    score = max(0.0, min(1.0, score))
+    
+    # Print END log (official format)
+    log_end(success=success, steps=step, score=score, rewards=rewards)
     
     return results
 
@@ -243,22 +293,12 @@ def main():
     2. behavioral-analysis
     3. adversarial-defense
     """
-    print(json.dumps({"event": "INIT", "message": "Starting OpenEnv inference"}), flush=True)
-    
     # Initialize grader
     grader = Grader()
     
-    # Choose agent based on environment
-    use_llm = os.environ.get("USE_LLM", "false").lower() == "true"
-    
-    if use_llm:
-        print(json.dumps({"event": "INFO", "agent": "LLM", "model": os.environ.get("MODEL_NAME", "unknown")}), flush=True)
-        agent = LLMAgent()
-    else:
-        # Use HardDefenderAgent (F1=0.791 winning agent)
-        from hard_defender_agent import HardDefenderAgent
-        print(json.dumps({"event": "INFO", "agent": "HardDefender", "version": "1.0"}), flush=True)
-        agent = HardDefenderAgent(block_threshold=2.5)
+    # Use HardDefenderAgent (F1=0.791 winning agent)
+    from hard_defender_agent import HardDefenderAgent
+    agent = HardDefenderAgent(block_threshold=2.5)
     
     # Define tasks
     tasks = [
@@ -272,35 +312,26 @@ def main():
     
     for task_name, dataset_fn in tasks:
         try:
-            results = run_task(task_name, dataset_fn, agent, grader)
+            results = run_task(
+                task_name=task_name,
+                dataset_fn=dataset_fn,
+                agent=agent,
+                grader=grader,
+                benchmark="api-defender"
+            )
             all_results.append({
                 "task": task_name,
-                "score": results["score"],
-                "f1": results["f1"]
+                "f1": results.get("f1", 0.0),
+                "score": results.get("score", 0.0)
             })
         except Exception as e:
-            error_log = {
-                "event": "ERROR",
-                "task": task_name,
-                "error": str(e)
-            }
-            print(json.dumps(error_log), flush=True)
+            print(f"[ERROR] Task {task_name} failed: {str(e)}", file=sys.stderr, flush=True)
             all_results.append({
                 "task": task_name,
-                "score": 0.0,
                 "f1": 0.0,
+                "score": 0.0,
                 "error": str(e)
             })
-    
-    # Print final summary
-    summary = {
-        "event": "SUMMARY",
-        "tasks": all_results,
-        "average_score": sum(r["score"] for r in all_results) / len(all_results) if all_results else 0.0
-    }
-    print(json.dumps(summary), flush=True)
-    
-    print(json.dumps({"event": "COMPLETE"}), flush=True)
 
 
 if __name__ == "__main__":

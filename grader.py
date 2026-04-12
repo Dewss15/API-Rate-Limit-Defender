@@ -5,7 +5,15 @@ CRITICAL: This grader MUST match evaluator.py EXACTLY.
 Formula and metrics must be identical for hackathon submission.
 """
 
+import sys
 from typing import Dict, List, Any
+
+# Avoid UnicodeEncodeError on Windows consoles (cp1252) when printing emojis.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 
 class Grader:

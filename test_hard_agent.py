@@ -13,6 +13,13 @@ Tests all aspects of the risk-based defender:
 import sys
 from typing import List, Dict, Any
 from hard_defender_agent import HardDefenderAgent
+
+# Avoid Windows cp1252 stdout issues in some runners
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 from environment import make_env
 from grader import Grader
 from data import get_easy_data, get_medium_data, get_extreme_data, get_winning_data
@@ -31,11 +38,11 @@ class TestHardDefenderAgent:
         """Assert equality with detailed output"""
         self.total += 1
         if actual == expected:
-            print(f"  ✅ {test_name}")
+            print(f"  [PASS] {test_name}")
             self.passed += 1
             return True
         else:
-            print(f"  ❌ {test_name}")
+            print(f"  [FAIL] {test_name}")
             print(f"     Expected: {expected}")
             print(f"     Got:      {actual}")
             self.failed += 1
@@ -45,11 +52,11 @@ class TestHardDefenderAgent:
         """Assert condition is true"""
         self.total += 1
         if condition:
-            print(f"  ✅ {test_name}")
+            print(f"  [PASS] {test_name}")
             self.passed += 1
             return True
         else:
-            print(f"  ❌ {test_name}")
+            print(f"  [FAIL] {test_name}")
             self.failed += 1
             return False
     
@@ -57,11 +64,11 @@ class TestHardDefenderAgent:
         """Assert value is greater than or equal to threshold"""
         self.total += 1
         if actual >= threshold:
-            print(f"  ✅ {test_name} ({actual:.3f} >= {threshold})")
+            print(f"  [PASS] {test_name} ({actual:.3f} >= {threshold})")
             self.passed += 1
             return True
         else:
-            print(f"  ❌ {test_name} ({actual:.3f} < {threshold})")
+            print(f"  [FAIL] {test_name} ({actual:.3f} < {threshold})")
             self.failed += 1
             return False
     
@@ -69,11 +76,11 @@ class TestHardDefenderAgent:
         """Assert value is less than or equal to threshold"""
         self.total += 1
         if actual <= threshold:
-            print(f"  ✅ {test_name} ({actual} <= {threshold})")
+            print(f"  [PASS] {test_name} ({actual} <= {threshold})")
             self.passed += 1
             return True
         else:
-            print(f"  ❌ {test_name} ({actual} > {threshold})")
+            print(f"  [FAIL] {test_name} ({actual} > {threshold})")
             self.failed += 1
             return False
     
@@ -87,45 +94,47 @@ class TestHardDefenderAgent:
         print("TEST 1: Risk Scoring Logic")
         print("="*80)
         
-        # Test Case 1.1: High RPS + Suspicious = High Risk
-        user1 = {"id": "T1", "rps": 200, "is_suspicious_pattern": True, "tier": "normal"}
-        risk1 = self.agent._risk_score(user1)
-        self.assert_equal(risk1, 4.0, "High RPS (>90) + Suspicious = 4.0 risk")
-        
-        # Test Case 1.2: Medium RPS + Suspicious = Medium-High Risk
-        user2 = {"id": "T2", "rps": 70, "is_suspicious_pattern": True, "tier": "normal"}
-        risk2 = self.agent._risk_score(user2)
-        self.assert_equal(risk2, 3.0, "Medium RPS (50-90) + Suspicious = 3.0 risk")
-        
-        # Test Case 1.3: Low RPS + Suspicious = Medium Risk
-        user3 = {"id": "T3", "rps": 30, "is_suspicious_pattern": True, "tier": "normal"}
-        risk3 = self.agent._risk_score(user3)
-        self.assert_equal(risk3, 2.5, "Low RPS (20-50) + Suspicious = 2.5 risk")
-        
-        # Test Case 1.4: High RPS + Not Suspicious = Medium Risk
-        user4 = {"id": "T4", "rps": 150, "is_suspicious_pattern": False, "tier": "normal"}
-        risk4 = self.agent._risk_score(user4)
-        self.assert_equal(risk4, 2.0, "High RPS (>90) + Not Suspicious = 2.0 risk")
-        
-        # Test Case 1.5: Low RPS + Not Suspicious = Low Risk
-        user5 = {"id": "T5", "rps": 10, "is_suspicious_pattern": False, "tier": "normal"}
-        risk5 = self.agent._risk_score(user5)
-        self.assert_equal(risk5, 0.5, "Very low RPS (<15) + Not Suspicious = 0.5 risk")
-        
-        # Test Case 1.6: Normal activity = No Risk
-        user6 = {"id": "T6", "rps": 15, "is_suspicious_pattern": False, "tier": "normal"}
-        risk6 = self.agent._risk_score(user6)
-        self.assert_equal(risk6, 0.0, "Normal RPS (15-20) + Not Suspicious = 0.0 risk")
-        
-        # Test Case 1.7: Premium user gets protection (-2.0)
-        user7 = {"id": "T7", "rps": 200, "is_suspicious_pattern": True, "tier": "premium"}
-        risk7 = self.agent._risk_score(user7)
-        self.assert_equal(risk7, 2.0, "Premium gets -2.0 protection (4.0 - 2.0 = 2.0)")
-        
-        # Test Case 1.8: Premium with normal activity = Negative risk
-        user8 = {"id": "T8", "rps": 10, "is_suspicious_pattern": False, "tier": "premium"}
-        risk8 = self.agent._risk_score(user8)
-        self.assert_equal(risk8, -1.5, "Premium + low activity = -1.5 (0.5 - 2.0)")
+        # NOTE: risk scoring uses observation-level statistics (mean/std rps).
+        # These tests assert *relative ordering* rather than exact scalar values.
+        users_for_stats = [
+            {"id": "S1", "rps": 200, "is_suspicious_pattern": True, "tier": "normal"},
+            {"id": "S2", "rps": 70, "is_suspicious_pattern": True, "tier": "normal"},
+            {"id": "S3", "rps": 30, "is_suspicious_pattern": True, "tier": "normal"},
+            {"id": "S4", "rps": 150, "is_suspicious_pattern": False, "tier": "normal"},
+            {"id": "S5", "rps": 10, "is_suspicious_pattern": False, "tier": "normal"},
+            {"id": "S6", "rps": 15, "is_suspicious_pattern": False, "tier": "normal"},
+        ]
+        mean_rps, std_rps = self.agent._rps_stats(users_for_stats)
+
+        # High RPS + Suspicious should be highest
+        u1 = {"id": "T1", "rps": 200, "is_suspicious_pattern": True, "tier": "normal"}
+        r1 = self.agent._risk_score(u1, mean_rps=mean_rps, std_rps=std_rps)
+
+        # Mid-range + suspicious should be risky, but uncertainty zone makes it less aggressive
+        u2 = {"id": "T2", "rps": 70, "is_suspicious_pattern": True, "tier": "normal"}
+        r2 = self.agent._risk_score(u2, mean_rps=mean_rps, std_rps=std_rps)
+
+        # Low-ish + suspicious should still be above normal humans
+        u3 = {"id": "T3", "rps": 20, "is_suspicious_pattern": True, "tier": "normal"}
+        r3 = self.agent._risk_score(u3, mean_rps=mean_rps, std_rps=std_rps)
+
+        # High RPS but NOT suspicious should be lower than (high+suspicious)
+        u4 = {"id": "T4", "rps": 150, "is_suspicious_pattern": False, "tier": "normal"}
+        r4 = self.agent._risk_score(u4, mean_rps=mean_rps, std_rps=std_rps)
+
+        # Low RPS + not suspicious should be de-risked (avoid overblocking)
+        u5 = {"id": "T5", "rps": 10, "is_suspicious_pattern": False, "tier": "normal"}
+        r5 = self.agent._risk_score(u5, mean_rps=mean_rps, std_rps=std_rps)
+
+        self.assert_true(r1 > r2, "High+Suspicious risk > Mid+Suspicious risk")
+        self.assert_true(r2 >= r3, "Mid+Suspicious risk >= Low+Suspicious risk")
+        self.assert_true(r1 > r4, "High+Suspicious risk > High-only risk")
+        self.assert_true(r5 < 0.0, "Low+NotSuspicious should be negative (de-risk)")
+
+        # Premium users are strictly excluded
+        u_premium = {"id": "T7", "rps": 500, "is_suspicious_pattern": True, "tier": "premium"}
+        r_premium = self.agent._risk_score(u_premium, mean_rps=mean_rps, std_rps=std_rps)
+        self.assert_true(r_premium < -1e6, "Premium users excluded from blocking")
     
     # ========================================================================
     # TEST 2: Premium Protection
@@ -204,7 +213,7 @@ class TestHardDefenderAgent:
         self.assert_greater_equal(winning_results['f1'], 0.70, "Winning F1 >= 0.70 (PASS THRESHOLD)")
         self.assert_equal(winning_results['premium_penalty'], 0, "Winning: No premium violations")
         
-        print(f"\n  📊 Performance Summary:")
+        print(f"\n  Performance Summary:")
         print(f"     Easy:    F1={easy_results['f1']:.3f}, Premium={easy_results['premium_penalty']}")
         print(f"     Medium:  F1={medium_results['f1']:.3f}, Premium={medium_results['premium_penalty']}")
         print(f"     Extreme: F1={extreme_results['f1']:.3f}, Premium={extreme_results['premium_penalty']}")
@@ -248,7 +257,7 @@ class TestHardDefenderAgent:
         self.assert_true("E2" in blocked, "Max RPS bot blocked")
         
         # Check specific edge cases
-        print(f"\n  📋 Edge Case Results:")
+        print(f"\n  Edge Case Results:")
         for user in edge_cases:
             was_blocked = user['id'] in blocked
             print(f"     {user['id']}: RPS={user['rps']:5d}, Susp={str(user['is_suspicious_pattern']):5s}, "
@@ -357,7 +366,7 @@ class TestHardDefenderAgent:
             if is_correct:
                 correct += 1
             
-            result = "✅ CORRECT" if is_correct else "❌ WRONG"
+            result = "CORRECT" if is_correct else "WRONG"
             action = "BLOCKED" if was_blocked else "ALLOWED"
             
             print(f"  {user['id']:>4} | {user['rps']:>4d} | {str(user['is_suspicious_pattern']):>10} | "
@@ -462,15 +471,15 @@ class TestHardDefenderAgent:
         print("TEST SUMMARY")
         print("="*80)
         print(f"\n  Total Tests:  {self.total}")
-        print(f"  Passed:       {self.passed} ✅")
-        print(f"  Failed:       {self.failed} ❌")
+        print(f"  Passed:       {self.passed}")
+        print(f"  Failed:       {self.failed}")
         print(f"  Pass Rate:    {(self.passed/self.total*100):.1f}%")
         
         if self.failed == 0:
-            print("\n  🎉 ALL TESTS PASSED! Agent is ready for submission!")
+            print("\n  ALL TESTS PASSED! Agent is ready for submission!")
             return 0
         else:
-            print(f"\n  ⚠️  {self.failed} test(s) failed. Review and fix before submission.")
+            print(f"\n  {self.failed} test(s) failed. Review and fix before submission.")
             return 1
 
 

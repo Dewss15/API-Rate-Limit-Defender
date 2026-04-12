@@ -2,8 +2,16 @@
 Quick verification: Test HardDefenderAgent on all datasets from data.py
 """
 
+import sys
 from hard_defender_agent import HardDefenderAgent
 from environment import make_env
+
+# Avoid Windows cp1252 stdout issues in some runners
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
 from grader import Grader
 from data import get_easy_data, get_medium_data, get_extreme_data, get_winning_data
 
@@ -49,7 +57,7 @@ def main():
     all_pass = True
     
     for name, dataset in datasets:
-        print(f"\n📊 {name} Dataset:")
+        print(f"\n{name} Dataset:")
         print(f"   Total users: {len(dataset)}")
         
         # Count composition
@@ -77,13 +85,13 @@ def main():
         if name == "Winning":
             threshold = 0.70
             passed = results['f1'] >= threshold and results['premium_penalty'] == 0
-            status = "✅ PASS" if passed else "❌ FAIL"
+            status = "PASS" if passed else "FAIL"
             print(f"\n   Status: {status} (F1 >= {threshold} required)")
             if not passed:
                 all_pass = False
         else:
             passed = results['premium_penalty'] == 0
-            status = "✅ PASS" if passed else "⚠️ WARNING"
+            status = "PASS" if passed else "WARNING"
             print(f"\n   Status: {status} (Premium protection)")
             if not passed:
                 all_pass = False
@@ -94,7 +102,7 @@ def main():
     print("="*80)
     
     if all_pass:
-        print("\n✅ ALL TESTS PASSED!")
+        print("\nALL TESTS PASSED!")
         print("\n   Your HardDefenderAgent works correctly on all datasets!")
         print("   Ready for hackathon submission.")
         print("\n   Next steps:")
@@ -102,7 +110,7 @@ def main():
         print("   2. Zip the submission folder")
         print("   3. Submit to hackathon platform")
     else:
-        print("\n❌ SOME TESTS FAILED!")
+        print("\nSOME TESTS FAILED!")
         print("\n   Review the results above and fix any issues.")
     
     print("\n" + "="*80)
